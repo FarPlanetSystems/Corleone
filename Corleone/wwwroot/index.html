@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="css/index.css" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="image-wrapper">
+            <img src="assets/CorleoneBW.png" sizes="100" />
+        </div>
+
+        <h1>Corleone Self-Host</h1>
+        <h2 id="greetings"></h2>
+
+    </header>
+    <div class="main-section">
+
+        <form id="todo-form">
+            <input id="title" placeholder="What needs to be done?" required>
+            <button>Add</button>
+        </form>
+
+        <ul id="todo-list"></ul>
+    </div>
+    
+
+
+    <script>
+        const form = document.querySelector("#todo-form");
+        const titleInput = document.querySelector("#title");
+        const list = document.querySelector("#todo-list");
+
+
+        async function loadMember() {
+            const meResponse = await fetch("/api/user");
+            if (!meResponse.ok) { window.location.href = "login.html" }
+            else {
+                const text = (await meResponse.json).username
+                document.getElementById("greetings").textContent = text;
+                console.log(text)
+            }
+            
+        }
+        loadMember();
+       
+    </script>
+</body>
+</html>

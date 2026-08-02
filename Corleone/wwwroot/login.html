@@ -1,0 +1,48 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <link href="css/signup.css" rel="stylesheet">
+    <title></title>
+</head>
+<body>
+    <div class="singup-section">
+        <p class="signup-label">Family is waiting for you!</p>
+        <form class="login-signup-form" name="signupForm" id="signupForm">
+            <input name="username" id="username" class="logsign-input" placeholder="name" required />
+            <input name="password" id="password" class="logsign-input" placeholder="family password" required />
+            <div class="button-wrapper">
+                <button class="logsing-button">Sign up</button>
+            </div>
+            <div class="login-ref-wrapper">
+                <p>don't have an account?</p>
+                <a href="/signup.html">sign up</a>
+            </div>
+
+        </form>
+    </div>
+    <script>
+        const form = document.querySelector("#signupForm");
+        const usernameInput = document.querySelector("#username");
+        const passwordInput = document.querySelector("#password");
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            await fetch("/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ username: usernameInput.value, password: passwordInput.value })
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = "/index.html";
+                    console.log("success");
+                } else {
+                    console.error("Error occurred while signing up.");
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>

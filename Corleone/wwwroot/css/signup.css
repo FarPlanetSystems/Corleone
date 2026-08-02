@@ -1,0 +1,78 @@
+﻿* {
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+    margin: 0;
+}
+
+body {
+    width: 100vw;
+    background-color: rgb(225, 225, 225);
+    display:flex;
+    margin:auto;
+}
+.singup-section {
+    padding:20px;
+    margin: auto;
+    margin-top: 200px;
+    width: 800px;
+    background-color: white;
+    border-radius: 10px;
+    align-items:center;
+    height:600px;
+}
+.signup-label {
+    align-self:center;
+    color: rgb(20, 20, 20);
+    font-size:32px;
+    margin:auto;
+    font-weight:800;
+}
+.login-signup-form{
+    justify-content:center;
+    margin:auto;
+    width:500px;
+    margin-top:50px;
+    gap:50px;
+    display:flex;
+    flex-direction:column;
+}
+.logsign-input {
+    height: 60px;
+    background-color: rgb(240, 240, 240);
+    border:none;
+    border-radius:7px;
+    padding:10px;
+    font-size:18px;
+
+}
+.logsing-button {
+    background-color: rgb(20, 20, 20);
+    color: white;
+    font-size:24px;
+
+    justify-self:center;
+    width:100px;
+    border:none;
+    height:60px;
+    border-radius:10px;
+
+}
+    .logsing-button:hover {
+        color: rgb(240, 240, 240);
+        transition:0.5s
+    }
+.button-wrapper {
+    margin: auto;
+    margin-top: 100px;
+    height: 60px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.login-ref-wrapper {
+    display: flex;
+    flex-direction: row;
+    font-size: 20px;
+    justify-content: space-around;
+}
