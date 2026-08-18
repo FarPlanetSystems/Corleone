@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text.Json;
+using System.IO;
 
 namespace Corleone
 {
@@ -7,11 +8,13 @@ namespace Corleone
     {
         private static bool isInitialized = false;
         private int lastId = 0;
+        public FamilyStorage Storage;
 
         private readonly string password;
 
         private Family(string password)  {
             this.password = password;
+            Storage = new FamilyStorage();
         }
 
         public bool RegisterUser(string username, string password)
@@ -30,6 +33,7 @@ namespace Corleone
                 }
                 users = users.Append(user).ToArray();
                 File.WriteAllText("Data/members.json", JsonSerializer.Serialize(users));
+                Storage.AddMemberStorage(username);
                 lastId++;
             }
             catch (Exception ex) {
@@ -39,6 +43,7 @@ namespace Corleone
             
             return true;
         }
+     
 
         public bool MemberExists(string username) {
             User[] users = JsonSerializer.Deserialize<User[]>(File.ReadAllText("Data/members.json")) ?? Array.Empty<User>();
@@ -58,6 +63,7 @@ namespace Corleone
             return false;
         }
 
+        
         public static Family createSingletonFamily(string password) {
             if (!isInitialized) {
                 isInitialized = true;

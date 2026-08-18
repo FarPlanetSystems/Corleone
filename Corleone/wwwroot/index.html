@@ -7,42 +7,180 @@
 </head>
 <body>
     <header>
-        <div class="image-wrapper">
-            <img src="assets/CorleoneBW.png" sizes="100" />
-        </div>
+        <div class="logo-wrapper">
+            <div class="image-wrapper">
+                <img src="assets/CorleoneBW.png" class="logo-image" sizes="100" />
+            </div>
 
-        <h1>Corleone Self-Host</h1>
-        <h2 id="greetings"></h2>
+            <h1>Corleone Self-Host</h1>
+        </div>
+        <div class="acc-section">
+            <button id="logoutButton" class="black-button-bordered">logout</button>
+        </div>
+        
 
     </header>
+
+    
     <div class="main-section">
-
-        <form id="todo-form">
-            <input id="title" placeholder="What needs to be done?" required>
-            <button>Add</button>
-        </form>
-
-        <ul id="todo-list"></ul>
+        <div class="sidebar">
+            <button class="sidebar-button">
+                gallery
+            </button>
+            <button class="sidebar-button">
+                files
+            </button>
+        </div>
+        <div class="file-display">
+            <div id="file-grid" class="files-grid"></div>
+            <input id="fileInput" type="file" multiple hidden />
+            <form method="dialog" id="imageDialog"></form>
+            <div class="black-button-wrapper"><button id="addFileButton" class="black-button">Add file</button></div>
+        </div>
+        
     </div>
     
 
 
     <script>
-        const form = document.querySelector("#todo-form");
-        const titleInput = document.querySelector("#title");
-        const list = document.querySelector("#todo-list");
+        const addFileButton = document.getElementById("addFileButton");
+        const addFileInput = document.getElementById("fileInput")
+        const fileGrid = document.getElementById("file-grid")
+        const imageDialog = document.getElementById("imageDialog")
+        const logoutButton = document.getElementById("logoutButton")
 
+        logoutButton.addEventListener("click", async () => {
+            response = await fetch("/api/logout", { method: "POST" })
+            window.location.href = "login"
+        })
+
+        addFileButton.addEventListener("click", () => {
+            addFileInput.click()
+        })
+
+        addFileInput.addEventListener("change", async () => {
+            const files = addFileInput.files;
+
+            console.log(files);
+
+            const formData = new FormData()
+            for (const file of files) {
+                formData.append("files", file);
+            }
+
+            const uploadResponse = await fetch("/api/upload", {
+                method: "POST", 
+                body: formData
+            })
+            window.location.href = "/";
+        })
 
         async function loadMember() {
             const meResponse = await fetch("/api/user");
-            if (!meResponse.ok) { window.location.href = "login.html" }
+            if (!meResponse.ok) { window.location.href = "login" }
             else {
-                const text = (await meResponse.json).username
-                document.getElementById("greetings").textContent = text;
+                const text = (await meResponse.json()).username
                 console.log(text)
             }
             
         }
+        async function loadFiles() {
+            const fileInfosResponse = await fetch("/api/files");
+            if (!fileInfosResponse.ok) {
+                console.log(fileInfosResponse.statusText)
+                return
+            }
+            const fileInfos = await fileInfosResponse.json()
+            console.log(fileInfos)
+            for (var file of fileInfos) {
+                addFileCard(file)
+            }
+        }
+
+        function addFileCard(file) {
+            const card = document.createElement("button")
+            card.id = file.name;
+            card.className = "file-card";
+
+            const link = document.createElement("a");
+            link.className = "file-link";
+            link.href = file.url;
+            link.id = file.name
+
+            const preview = document.createElement("div");
+            preview.className = "file-preview";
+
+            if (file.isImage) {
+                const image = document.createElement("img");
+                image.src = file.url;
+                image.alt = file.name;
+                preview.append(image);
+            } else {
+                const icon = document.createElement("span");
+                icon.className = "file-icon";
+                icon.textContent = getFileIcon(file.url);
+
+                preview.append(icon);
+
+                // Non-image responses are returned as downloads.
+                link.download = file.name;
+            }
+
+            const name = document.createElement("span");
+            name.className = "file-name";
+            name.textContent = file.name;
+            name.title = file.name;
+
+            const deleteButton = document.createElement("button")
+            deleteButton.className = "white-button"
+            deleteButton.textContent = "x"
+            deleteButton.addEventListener("click", async (event) => {
+                const card = event.srcElement.parentElement;
+               
+                const fileName = card.id;
+                const response = await fetch("/api/files/content/" + fileName, { method:"DELETE" })
+                if (!response.ok) {
+                    console.log(response.statusText)
+                    return
+                }
+                fileGrid.removeChild(card)
+            })
+
+
+            link.append(preview, name);
+            card.append(deleteButton, link);
+
+
+            fileGrid.append(card)
+        }
+
+        async function openImageCard() {
+            imageDialog.showModal()
+        }
+
+        function getFileIcon(fileName) {
+            const extension = fileName
+                .split(".")
+                .pop()
+                .toLowerCase();
+
+            const icons = {
+                pdf: "PDF",
+                doc: "DOC",
+                docx: "DOC",
+                txt: "TXT",
+                zip: "ZIP",
+                rar: "ZIP",
+                mp3: "♫",
+                wav: "♫",
+                mp4: "▶",
+                mov: "▶",
+                md:"MD"
+            };
+
+            return icons[extension] ?? "FILE";
+        }
+        loadFiles()
         loadMember();
        
     </script>
