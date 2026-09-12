@@ -1,111 +1,216 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="css/index.css" rel="stylesheet">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="css/index.css" rel="stylesheet">
 </head>
 <body>
     <header>
         <div class="logo-wrapper">
             <div class="image-wrapper">
-                <img src="assets/CorleoneBW.png" class="logo-image" sizes="100" />
+                <img src="assets/CorleoneBW.png" class="logo-image" alt="Corleone logo" />
             </div>
-
             <h1>Corleone Self-Host</h1>
         </div>
+
         <div class="acc-section">
             <button id="logoutButton" class="black-button-bordered">logout</button>
         </div>
-        
-
     </header>
 
-    
     <div class="main-section">
         <div class="sidebar">
-            <button class="sidebar-button">
-                gallery
-            </button>
-            <button class="sidebar-button">
-                files
-            </button>
+            <button id="galleryButton" class="sidebar-button">gallery</button>
+            <button id="filesButton" class="sidebar-button active">files</button>
         </div>
+
         <div class="file-display">
             <div id="file-grid" class="files-grid"></div>
             <input id="fileInput" type="file" multiple hidden />
-            <form method="dialog" id="imageDialog"></form>
-            <div class="black-button-wrapper"><button id="addFileButton" class="black-button">Add file</button></div>
-        </div>
-        
-    </div>
-    
 
+            <div class="black-button-wrapper">
+                <button id="addFileButton" class="black-button">Add file</button>
+                <button id="addFileButton" class="black-button">Add folder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom file/image viewer -->
+    <div id="fileViewer" class="file-viewer hidden" aria-hidden="true">
+        <button id="closeViewerButton" class="viewer-close" aria-label="Close viewer">×</button>
+
+        <button id="previousFileButton" class="viewer-arrow viewer-arrow-left" aria-label="Previous file">‹</button>
+
+        <div class="viewer-content">
+            <div id="viewerPreview" class="viewer-preview"></div>
+            <div id="viewerFileName" class="viewer-file-name"></div>
+
+            <div class="viewer-actions">
+                <button id="deleteSelectedButton" class="viewer-action-button danger-button">Delete</button>
+                <button id="shareSelectedButton" class="viewer-action-button">Share</button>
+                <a id="downloadLink" class="viewer-action-button">Download</a>
+            </div>
+        </div>
+
+        <button id="nextFileButton" class="viewer-arrow viewer-arrow-right" aria-label="Next file">›</button>
+    </div>
 
     <script>
         const addFileButton = document.getElementById("addFileButton");
-        const addFileInput = document.getElementById("fileInput")
-        const fileGrid = document.getElementById("file-grid")
-        const imageDialog = document.getElementById("imageDialog")
-        const logoutButton = document.getElementById("logoutButton")
+        const addFileInput = document.getElementById("fileInput");
+        const fileGrid = document.getElementById("file-grid");
+        const logoutButton = document.getElementById("logoutButton");
+        const galleryButton = document.getElementById("galleryButton");
+        const filesButton = document.getElementById("filesButton");
+
+        const fileViewer = document.getElementById("fileViewer");
+        const viewerPreview = document.getElementById("viewerPreview");
+        const viewerFileName = document.getElementById("viewerFileName");
+        const closeViewerButton = document.getElementById("closeViewerButton");
+        const previousFileButton = document.getElementById("previousFileButton");
+        const nextFileButton = document.getElementById("nextFileButton");
+        const deleteSelectedButton = document.getElementById("deleteSelectedButton");
+        const shareSelectedButton = document.getElementById("shareSelectedButton");
+
+        const fileViewerDownloadLink = document.getElementById("downloadLink");
+
+        let loadedFiles = [];
+        let visibleFiles = [];
+        let selectedFileIndex = -1;
+        // very very important!!!
+        let currentDirectoryLocalAddress = "/"
 
         logoutButton.addEventListener("click", async () => {
-            response = await fetch("/api/logout", { method: "POST" })
-            window.location.href = "login"
-        })
+            const response = await fetch("/api/logout", { method: "POST" });
+            if (response.ok) {
+                window.location.href = "login";
+            }
+        });
 
         addFileButton.addEventListener("click", () => {
-            addFileInput.click()
-        })
+            addFileInput.click();
+        });
 
         addFileInput.addEventListener("change", async () => {
             const files = addFileInput.files;
 
-            console.log(files);
+            if (files.length === 0) {
+                return;
+            }
 
-            const formData = new FormData()
+            const formData = new FormData();
             for (const file of files) {
                 formData.append("files", file);
             }
 
             const uploadResponse = await fetch("/api/upload", {
-                method: "POST", 
+                method: "POST",
                 body: formData
-            })
-            window.location.href = "/";
-        })
+            });
+
+            if (uploadResponse.ok) {
+                await loadFiles();
+                addFileInput.value = "";
+            } else {
+                console.log(uploadResponse.statusText);
+            }
+        });
+
+        filesButton.addEventListener("click", showAllFiles);
+        galleryButton.addEventListener("click", showGallery);
 
         async function loadMember() {
             const meResponse = await fetch("/api/user");
-            if (!meResponse.ok) { window.location.href = "login" }
-            else {
-                const text = (await meResponse.json()).username
-                console.log(text)
+
+            if (!meResponse.ok) {
+                window.location.href = "login";
+                return;
             }
-            
+
+            const username = (await meResponse.json()).username;
+            console.log(username);
         }
+
         async function loadFiles() {
             const fileInfosResponse = await fetch("/api/files");
+
             if (!fileInfosResponse.ok) {
-                console.log(fileInfosResponse.statusText)
-                return
+                console.log(fileInfosResponse.statusText);
+                return;
             }
-            const fileInfos = await fileInfosResponse.json()
-            console.log(fileInfos)
-            for (var file of fileInfos) {
-                addFileCard(file)
+
+            loadedFiles = await fileInfosResponse.json();
+
+            if (galleryButton.classList.contains("active")) {
+                showGallery();
+            } else {
+                showAllFiles();
             }
+        }
+
+        function renderFiles(files) {
+            visibleFiles = files;
+            fileGrid.innerHTML = "";
+
+            for (const file of visibleFiles) {
+                addFileCard(file);
+            }
+        }
+
+        function renderGallery(pics) {
+            visibleFiles = pics;
+            fileGrid.innerHTML = "";
+
+            for (const file of visibleFiles) {
+                addGalleryCard(file);
+            }
+        }
+
+        function showAllFiles() {
+            renderFiles(loadedFiles);
+            setActiveSidebarButton(filesButton);
+        }
+
+        function showGallery() {
+            renderGallery(loadedFiles.filter(file => file.isImage));
+            setActiveSidebarButton(galleryButton);
+        }
+
+        
+
+        function setActiveSidebarButton(activeButton) {
+            galleryButton.classList.remove("active");
+            filesButton.classList.remove("active");
+            activeButton.classList.add("active");
+
+         
+        }
+
+        function addGalleryCard(file) {
+            const card = document.createElement("button");
+            card.type = "button";
+            card.className = "galery-card";
+            card.title = file.name;
+
+            const image = document.createElement("img");
+            image.src = file.url;
+            image.alt = file.name;
+            card.append(image);
+
+            card.addEventListener("click", () => {
+                const index = visibleFiles.findIndex(item => item.name === file.name);
+                openFileViewer(index);
+            });
+
+            fileGrid.append(card);
         }
 
         function addFileCard(file) {
-            const card = document.createElement("button")
-            card.id = file.name;
+            const card = document.createElement("button");
+            card.type = "button";
             card.className = "file-card";
-
-            const link = document.createElement("a");
-            link.className = "file-link";
-            link.href = file.url;
-            link.id = file.name
+            card.title = file.name;
 
             const preview = document.createElement("div");
             preview.className = "file-preview";
@@ -118,45 +223,235 @@
             } else {
                 const icon = document.createElement("span");
                 icon.className = "file-icon";
-                icon.textContent = getFileIcon(file.url);
-
+                icon.textContent = getFileIcon(file.name);
                 preview.append(icon);
-
-                // Non-image responses are returned as downloads.
-                link.download = file.name;
             }
 
             const name = document.createElement("span");
             name.className = "file-name";
             name.textContent = file.name;
-            name.title = file.name;
 
-            const deleteButton = document.createElement("button")
-            deleteButton.className = "white-button"
-            deleteButton.textContent = "x"
-            deleteButton.addEventListener("click", async (event) => {
-                const card = event.srcElement.parentElement;
-               
-                const fileName = card.id;
-                const response = await fetch("/api/files/content/" + fileName, { method:"DELETE" })
+            card.append(preview, name);
+
+            card.addEventListener("click", () => {
+                const index = visibleFiles.findIndex(item => item.name === file.name);
+                openFileViewer(index);
+            });
+
+            fileGrid.append(card);
+        }
+
+        function openFileViewer(index) {
+            if (index < 0 || index >= visibleFiles.length) {
+                return;
+            }
+
+            selectedFileIndex = index;
+            fileViewer.classList.remove("hidden");
+            fileViewer.setAttribute("aria-hidden", "false");
+            document.body.classList.add("viewer-open");
+            renderSelectedFile();
+        }
+
+        function closeFileViewer() {
+            fileViewer.classList.add("hidden");
+            fileViewer.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("viewer-open");
+            viewerPreview.innerHTML = "";
+            selectedFileIndex = -1;
+        }
+
+        function renderSelectedFile() {
+            const file = visibleFiles[selectedFileIndex];
+
+            if (!file) {
+                closeFileViewer();
+                return;
+            }
+
+            viewerPreview.innerHTML = "";
+            viewerFileName.textContent = file.name;
+
+            if (file.isImage) {
+                viewerFileName.textContent = readImageDate(file.name)
+                const image = document.createElement("img");
+                image.src = file.url;
+                image.alt = file.name;
+                viewerPreview.append(image);
+            } else {
+                const icon = document.createElement("span");
+                icon.className = "viewer-file-icon";
+                icon.textContent = getFileIcon(file.name);
+                viewerPreview.append(icon);
+            }
+            //changing download link
+            fileViewerDownloadLink.href = file.url;
+            fileViewerDownloadLink.download = "corleone." + file.url.split(".").pop().toLowerCase();
+
+            previousFileButton.disabled = visibleFiles.length <= 1;
+            nextFileButton.disabled = visibleFiles.length <= 1;
+        }
+
+        function readImageDate(fileName) {
+            var day = ""
+            var month = ""
+            var year = ""
+            var index = 0
+            day = fileName[index]
+            index += 1
+            if (fileName[index] != "-") {
+                day = day + fileName[index]
+                index += 1
+            }
+            index += 1
+            
+            month = fileName[index]
+            index += 1
+            if (fileName[index] != "-") {
+                month = month + fileName[index]
+                index += 1
+            }
+            index += 1
+            
+            year = fileName[index] + fileName[index+1] + fileName[index+2] + fileName[index+3]
+            return day + "." + month + "." + year
+        }
+
+        function showPreviousFile() {
+            if (visibleFiles.length <= 1) {
+                return;
+            }
+
+            selectedFileIndex =
+                (selectedFileIndex - 1 + visibleFiles.length) % visibleFiles.length;
+
+            renderSelectedFile();
+            
+        }
+
+        function showNextFile() {
+            if (visibleFiles.length <= 1) {
+                return;
+            }
+
+            selectedFileIndex =
+                (selectedFileIndex + 1) % visibleFiles.length;
+
+            renderSelectedFile();
+        }
+
+        async function deleteSelectedFile() {
+            const file = visibleFiles[selectedFileIndex];
+
+            if (!file) {
+                return;
+            }
+
+            const response = await fetch(
+                "/api/files/content/" + encodeURIComponent(file.name),
+                { method: "DELETE" }
+            );
+
+            if (!response.ok) {
+                console.log(response.statusText);
+                return;
+            }
+
+            loadedFiles = loadedFiles.filter(item => item.name !== file.name);
+
+            const wasGalleryOpen = galleryButton.classList.contains("active");
+            const newVisibleFiles = wasGalleryOpen
+                ? loadedFiles.filter(item => item.isImage)
+                : loadedFiles;
+
+            if (wasGalleryOpen) {
+                renderGallery(newVisibleFiles)
+            } else {
+                renderFiles(newVisibleFiles);
+            }
+            
+
+            if (visibleFiles.length === 0) {
+                closeFileViewer();
+                return;
+            }
+
+            if (selectedFileIndex >= visibleFiles.length) {
+                selectedFileIndex = visibleFiles.length - 1;
+            }
+
+            renderSelectedFile();
+        }
+
+        async function shareSelectedFile() {
+            const file = visibleFiles[selectedFileIndex];
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                const response = await fetch(file.url);
+
                 if (!response.ok) {
-                    console.log(response.statusText)
-                    return
+                    throw new Error("Could not load file for sharing.");
                 }
-                fileGrid.removeChild(card)
-            })
 
+                const blob = await response.blob();
+                const sharedFile = new File([blob], file.name, {
+                    type: blob.type || "application/octet-stream"
+                });
 
-            link.append(preview, name);
-            card.append(deleteButton, link);
+                if (!navigator.share) {
+                    alert("File sharing is not supported by this browser.");
+                    return;
+                }
 
+                const shareData = {
+                    title: file.name,
+                    files: [sharedFile]
+                };
 
-            fileGrid.append(card)
+                if (navigator.canShare && !navigator.canShare(shareData)) {
+                    alert("This browser cannot share this type of file.");
+                    return;
+                }
+
+                await navigator.share(shareData);
+            } catch (error) {
+                // AbortError means the user simply closed the native share dialog.
+                if (error.name !== "AbortError") {
+                    console.error(error);
+                    alert("The file could not be shared.");
+                }
+            }
         }
 
-        async function openImageCard() {
-            imageDialog.showModal()
-        }
+        closeViewerButton.addEventListener("click", closeFileViewer);
+        previousFileButton.addEventListener("click", showPreviousFile);
+        nextFileButton.addEventListener("click", showNextFile);
+        deleteSelectedButton.addEventListener("click", deleteSelectedFile);
+        shareSelectedButton.addEventListener("click", shareSelectedFile);
+
+        fileViewer.addEventListener("click", event => {
+            if (event.target === fileViewer) {
+                closeFileViewer();
+            }
+        });
+
+        document.addEventListener("keydown", event => {
+            if (fileViewer.classList.contains("hidden")) {
+                return;
+            }
+
+            if (event.key === "Escape") {
+                closeFileViewer();
+            } else if (event.key === "ArrowLeft") {
+                showPreviousFile();
+            } else if (event.key === "ArrowRight") {
+                showNextFile();
+            }
+        });
 
         function getFileIcon(fileName) {
             const extension = fileName
@@ -175,14 +470,14 @@
                 wav: "♫",
                 mp4: "▶",
                 mov: "▶",
-                md:"MD"
+                md: "MD"
             };
 
             return icons[extension] ?? "FILE";
         }
-        loadFiles()
+
+        loadFiles();
         loadMember();
-       
     </script>
 </body>
 </html>

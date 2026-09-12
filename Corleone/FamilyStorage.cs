@@ -78,6 +78,12 @@
                 
             }
         }
+
+        public void addDirectory(string directoryLocalAddress) {
+            string directoryFullPath = Path.Combine(Directory.GetCurrentDirectory(), "Data", "FileStorage", directoryLocalAddress);
+            Directory.CreateDirectory(directoryFullPath);
+
+        }
         private static bool isSafeImageType(string? contentType)
         {
             return contentType is

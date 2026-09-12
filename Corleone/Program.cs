@@ -67,11 +67,18 @@ app.MapPost("/signup", (UserInput user) =>
 
 app.MapPost("/login", async (UserInput user, HttpContext context) => {
     if (family.AuthenticateMember(user.username, user.password)) {
-        Claim[] claims = new[] { new Claim(ClaimTypes.Name, user.username)};
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = true});
-        Console.WriteLine("User logged in");
-        return Results.Ok();
+        try
+        {
+            Claim[] claims = new[] { new Claim(ClaimTypes.Name, user.username) };
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity), new AuthenticationProperties { IsPersistent = true });
+            Console.WriteLine("User logged in");
+            return Results.Ok();
+        }
+        catch(Exception e)
+        {
+            return Results.InternalServerError(e);
+        }
     }
     return Results.Unauthorized();
 }
@@ -193,6 +200,31 @@ app.MapDelete("/api/files/content/{fileName}", (string fileName, ClaimsPrincipal
 
     return Results.Ok();
 
+}).RequireAuthorization();
+
+app.MapPost("/api/dir/{directoryPath}", (string directoryPath, ClaimsPrincipal member) =>
+{
+    string memberName = member.Identity.Name;
+    if (memberName == null || !family.MemberExists(memberName))
+    {
+        return Results.BadRequest(member);
+    }
+    string localDirectoryAdress = memberName + directoryPath;
+    family.Storage.addDirectory(localDirectoryAdress);
+    return Results.Ok();
+}).RequireAuthorization();
+
+//rename dir
+app.MapPut("/api/dir/{oldPath, newPath}", (string oldPath, string newPath,ClaimsPrincipal member) =>
+{
+    string memberName = member.Identity.Name;
+    if (memberName == null || !family.MemberExists(memberName))
+    {
+        return Results.BadRequest(member);
+    }
+    //string localDirectoryAdress = memberName + directoryPath;
+    //family.Storage.addDirectory(localDirectoryAdress);
+    return Results.Ok();
 }).RequireAuthorization();
 
 app.Run();
